@@ -49,11 +49,21 @@ directory you fetched into; paths in the dataset are relative
   versions, timings, and SHA-256 checksums of both the dataset and the scripts
 - `<stem>.log` — full stdout/stderr
 
-> **Before sharing a `.meta.json`, check what is in it.** The sidecar records
-> the host of your `AZURE_OPENAI_ENDPOINT` so that a run can be traced to the
-> deployment that produced it. On a private or institutional deployment that
-> hostname may identify you or your organisation. Redact it before attaching a
-> sidecar to a paper, issue or public repository.
+> **Before sharing a `.meta.json`, check what is in it.** To make a run
+> traceable the sidecar records several things tied to the machine that produced
+> it, any of which can identify you or your organisation:
+>
+> - `run.host` — the machine's hostname
+> - `run.platform` and `run.command` — OS details and the full command line
+> - `dataset.path` — the **absolute** path to the input CSV, which normally
+>   contains your username
+> - `model.azure_endpoint_host` — the host of `AZURE_OPENAI_ENDPOINT`, which on
+>   an institutional deployment names the institution
+> - `model.google_cloud_project` and `model.google_cloud_location`
+>
+> None of this is secret, but together it is identifying. Redact before
+> attaching a sidecar to a paper, an issue, or a public repository — and note
+> that anonymous review is exactly the situation where it matters.
 
 Closed-model results are not bitwise reproducible, because providers update
 served checkpoints without notice. The snapshot fields are what let you tell
