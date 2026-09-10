@@ -3,8 +3,9 @@
 ## Read this before using the images
 
 **Every one of the 379 source articles is licensed for non-commercial use only.
-None is plain CC BY.** We verified this against PMC's own licence metadata for
-all 379 articles; the per-article breakdown is in `source_articles.csv`.
+None is plain CC BY.** We verified this by querying PMC's own licence metadata
+for all 379 articles; the counts below are that tally, and the query is given
+at the end of this file so anyone can reproduce it.
 
 | Licence | Articles | Questions |
 |---|---|---|
@@ -55,23 +56,23 @@ MIT, per `LICENSE`.
 Every CC licence in use here requires attributing the original work. The dataset
 carries what you need on each row, so attribution does not require a lookup:
 
-| Column | Use |
+| Field | Use |
 |---|---|
 | `authors` | The creators to credit |
-| `title` | The work's title |
-| `pmc_url` | Link to the original |
+| `file_name` | Carries the PMCID, which identifies the source article |
 
 Two of the 379 articles designate no author in PMC's metadata — an issue
 editorial (PMC4362191) and a biographical tribute (PMC6409286). For those,
 `authors` names the journal instead, marked `(no author listed)`, which is the
 appropriate fallback when no creator is designated.
 
-If you reproduce a figure, credit it with those three fields plus the licence
-from `source_articles.csv`.
+The PMCID in `file_name` resolves to the article page at
+`https://pmc.ncbi.nlm.nih.gov/articles/<PMCID>/`, which carries the title and
+the licence statement. If you reproduce a figure, credit the authors and link
+that page.
 
-`source_articles.csv` additionally carries, for each of the 379 articles: its
-licence code, DOI, PMC version, formatted citation, and how many images and
-questions it contributes. Machine-readable metadata is also available per article at:
+Machine-readable metadata — licence code, DOI, title, formatted citation and
+retraction status — is available per article at:
 
 ```
 https://pmc-oa-opendata.s3.amazonaws.com/<PMCID>.<version>/<PMCID>.<version>.json
@@ -85,8 +86,8 @@ is the field to re-check.
 
 If you publish results on this benchmark, cite the accompanying paper. If you
 reproduce an individual figure, cite that figure's source article too — the
-dataset's `authors`, `title`, and `pmc_url` columns identify it, and the
-`citation` column of `source_articles.csv` gives a formatted reference.
+dataset's `authors` column and the PMCID in `file_name` identify it, and the
+JSON endpoint above returns a formatted citation.
 
 ## Data provenance
 
@@ -119,6 +120,18 @@ https://pmc-oa-opendata.s3.amazonaws.com/<PMCID>.<version>/<basename>
 
 Images are individual objects, so no bulk index or tarball is involved.
 Documentation: <https://pmc.ncbi.nlm.nih.gov/tools/cloud/>
+
+## Reporting problems
+
+To re-derive the licence tally above, or to check one article:
+
+```python
+import json, urllib.request
+pmcid = "PMC8855428"
+u = f"https://pmc-oa-opendata.s3.amazonaws.com/{pmcid}.1/{pmcid}.1.json"
+m = json.load(urllib.request.urlopen(u))
+print(m["license_code"], "|", m["title"], "|", m["citation"])
+```
 
 ## Reporting problems
 

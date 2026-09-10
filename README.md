@@ -18,7 +18,6 @@ release for the review period.
 | `rexinthewild.csv` | The benchmark: 942 questions, answer keys, topic tags, and source attribution |
 | `fetch_images.py` | Retrieves the images from PMC Open Access (see below) |
 | `prompts.md` | Every pipeline prompt and all generation/evaluation hyperparameters |
-| `source_articles.csv` | Per-article licence, DOI, citation, and image/question counts for all 379 sources |
 | `code/` | Inference, scoring and fine-tuning code — see `code/README.md` |
 | `code/run_inference.py` | Evaluation harness for the models reported in the paper |
 | `code/run_with_provenance.py` | Wrapper recording model IDs, decoding params, and checksums per run |
@@ -44,8 +43,8 @@ All 479 were verified retrievable at the time of release.
 
 > **Licensing, in short: every one of the 379 source articles is non-commercial
 > only, and about a third are additionally no-derivatives.** Not one is plain
-> CC BY. Read `ATTRIBUTION.md` before using the images for anything, and consult
-> `source_articles.csv` for per-article terms.
+> CC BY. Read `ATTRIBUTION.md` before using the images for anything, and See
+> `ATTRIBUTION.md` for how to check any individual article's terms.
 
 If you built anything against NCBI's old FTP endpoints, note that they were
 **retired in August 2026** — `oa_file_list.csv` and `oa.fcgi` both 404 now. See
@@ -55,14 +54,19 @@ the end of `ATTRIBUTION.md` for the current object layout.
 
 | Column | Description |
 |---|---|
-| `file_name` | Relative image path, `images/{PMCID}_{basename}`. Unique per image. |
+| `file_name` | Relative image path, `images/{PMCID}_{basename}`. Unique per image, and the PMCID it carries is what identifies the source article. |
 | `question` | Question stem |
 | `choice_a` … `choice_e` | Answer options as separate columns. Populated in order; unused ones are empty. |
 | `answer` | **The full text of the correct option**, not a letter |
 | `tag` | One of 7 body-region topics |
-| `pmc_url` | Source article on PMC |
-| `title` | Source article title |
 | `authors` | Source article authors — **required for licence attribution**, see `ATTRIBUTION.md` |
+
+To resolve the source article for any row, take the PMCID from `file_name`:
+
+```python
+d["pmcid"] = d.file_name.str.extract(r"images/(PMC\d+)_")
+d["pmc_url"] = "https://pmc.ncbi.nlm.nih.gov/articles/" + d.pmcid + "/"
+```
 
 `answer` holds option *text* rather than a letter, so scoring does not depend on
 option order and you can shuffle options freely without remapping a key. Match
