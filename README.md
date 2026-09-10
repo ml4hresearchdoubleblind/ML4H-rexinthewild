@@ -17,7 +17,8 @@ release for the review period.
 |---|---|
 | `rexinthewild.csv` | The benchmark: 942 questions, answer keys, topic tags, and source attribution |
 | `fetch_images.py` | Retrieves the images from PMC Open Access (see below) |
-| `prompts.md` | Every pipeline prompt and all generation/evaluation hyperparameters |
+| `prompts.md` | Every prompt in the generation and evaluation pipeline |
+| `hyperparameters.md` | All model decoding settings, side by side |
 | `code/` | Inference, scoring and fine-tuning code — see `code/README.md` |
 | `code/run_inference.py` | Evaluation harness for the models reported in the paper |
 | `code/run_with_provenance.py` | Wrapper recording model IDs, decoding params, and checksums per run |
