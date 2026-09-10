@@ -11,9 +11,9 @@ Images come from the PMC Cloud Service on AWS Open Data, which replaced NCBI's
 legacy FTP dataset service in August 2026. Objects are addressed directly, so
 there is no bulk index to download and no tarballs to unpack.
 
-Files are written as {pmcid}_{image_file_name}, matching the `image_id` column,
-which is the dataset's unique image key. `image_file_name` alone is NOT unique:
-generic names like gr1.jpg recur across articles.
+Files are written as {pmcid}_{image_file_name}. That composite is the dataset's
+unique image key -- `image_file_name` alone is NOT unique, since generic names
+like gr1.jpg recur across articles.
 
 Usage:
     python fetch_images.py rexinthewild.csv images/
@@ -146,7 +146,7 @@ def main():
           f"failed {counts['fail']}")
     if failures:
         print("\nArticles are occasionally re-versioned or withdrawn upstream. Re-run to "
-              "retry; if a failure persists, please open an issue with the image_id.")
+              "retry; if a failure persists, please open an issue with the pmcid and filename.")
         return 1
     return 0
 

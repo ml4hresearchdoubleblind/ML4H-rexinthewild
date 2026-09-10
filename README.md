@@ -51,7 +51,6 @@ the end of `ATTRIBUTION.md` for the current object layout.
 
 | Column | Description |
 |---|---|
-| `image_id` | **Unique image key**: `{pmcid}_{image_file_name}`. Matches the filename written by `fetch_images.py`. |
 | `image_file_name` | Filename within the source article. **Not unique on its own** — see below. |
 | `pmcid` | PMC accession of the source article |
 | `question` | Question stem |
@@ -60,10 +59,17 @@ the end of `ATTRIBUTION.md` for the current object layout.
 | `answer_text` | Text of the gold option (redundant with `answer`, provided for convenience) |
 | `tag` | One of 7 body-region topics |
 
-**Join on `image_id`, not `image_file_name`.** Publishers reuse generic figure
-names, so `gr1.jpg`, `gr2.jpg`, and `gr4.jpg` each appear in several different
-articles. There are 485 distinct images but only 476 distinct filenames; keying
-on the filename silently collides 9 of them.
+**`image_file_name` is not a unique key — key on `(pmcid, image_file_name)`.**
+Publishers reuse generic figure names, so `gr1.jpg`, `gr2.jpg`, and `gr4.jpg`
+each appear in several different articles. There are 485 distinct images but only
+476 distinct filenames; keying on the filename alone silently collides 9 of them.
+
+`fetch_images.py` writes each image as `{pmcid}_{image_file_name}`, so the
+filename on disk is that composite key:
+
+```python
+d["image_path"] = "images/" + d.pmcid + "_" + d.image_file_name
+```
 
 `choices` is a newline-delimited string, not a serialised list. To parse:
 

@@ -112,4 +112,4 @@ Documentation: <https://pmc.ncbi.nlm.nih.gov/tools/cloud/>
 ## Reporting problems
 
 Errors in the questions, mismatched answer keys, and images that no longer
-retrieve are all worth reporting. Please open an issue with the `image_id`.
+retrieve are all worth reporting. Please open an issue with the `pmcid` and `image_file_name`.
