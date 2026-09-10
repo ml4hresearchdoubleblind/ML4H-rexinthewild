@@ -2,15 +2,15 @@
 
 ## Read this before using the images
 
-**Every one of the 381 source articles is licensed for non-commercial use only.
+**Every one of the 379 source articles is licensed for non-commercial use only.
 None is plain CC BY.** We verified this against PMC's own licence metadata for
-all 381 articles; the per-article breakdown is in `source_articles.csv`.
+all 379 articles; the per-article breakdown is in `source_articles.csv`.
 
 | Licence | Articles | Questions |
 |---|---|---|
-| CC BY-NC | 137 (36.0%) | 335 (35.1%) |
-| CC BY-NC-SA | 130 (34.1%) | 313 (32.8%) |
-| CC BY-NC-**ND** | 114 (29.9%) | 306 (32.1%) |
+| CC BY-NC | 136 (35.9%) | 331 (35.1%) |
+| CC BY-NC-SA | 129 (34.0%) | 311 (32.9%) |
+| CC BY-NC-**ND** | 114 (30.1%) | 302 (32.0%) |
 
 Two consequences worth being explicit about:
 
@@ -61,7 +61,7 @@ carries what you need on each row, so attribution does not require a lookup:
 | `title` | The work's title |
 | `pmc_url` | Link to the original |
 
-Two of the 381 articles designate no author in PMC's metadata — an issue
+Two of the 379 articles designate no author in PMC's metadata — an issue
 editorial (PMC4362191) and a biographical tribute (PMC6409286). For those,
 `authors` names the journal instead, marked `(no author listed)`, which is the
 appropriate fallback when no creator is designated.
@@ -69,7 +69,7 @@ appropriate fallback when no creator is designated.
 If you reproduce a figure, credit it with those three fields plus the licence
 from `source_articles.csv`.
 
-`source_articles.csv` additionally carries, for each of the 381 articles: its
+`source_articles.csv` additionally carries, for each of the 379 articles: its
 licence code, DOI, PMC version, formatted citation, and how many images and
 questions it contributes. Machine-readable metadata is also available per article at:
 
@@ -77,7 +77,7 @@ questions it contributes. Machine-readable metadata is also available per articl
 https://pmc-oa-opendata.s3.amazonaws.com/<PMCID>.<version>/<PMCID>.<version>.json
 ```
 
-At the time of release, none of the 381 articles was retracted and all were
+At the time of release, none of the 379 articles was retracted and all were
 present in the OA subset. Both facts can change; `is_retracted` in the JSON above
 is the field to re-check.
 
