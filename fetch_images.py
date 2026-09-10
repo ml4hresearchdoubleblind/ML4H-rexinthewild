@@ -11,9 +11,10 @@ Images come from the PMC Cloud Service on AWS Open Data, which replaced NCBI's
 legacy FTP dataset service in August 2026. Objects are addressed directly, so
 there is no bulk index to download and no tarballs to unpack.
 
-Files are written as {pmcid}_{image_file_name}. That composite is the dataset's
-unique image key -- `image_file_name` alone is NOT unique, since generic names
-like gr1.jpg recur across articles.
+The `file_name` column already holds the relative path each image is written to
+(images/{PMCID}_{basename}), so pointing --out at `images/` reproduces the paths
+the dataset refers to. The PMCID prefix is what makes the name unique: generic
+basenames like gr1.jpg recur across articles.
 
 Usage:
     python fetch_images.py rexinthewild.csv images/
@@ -117,15 +118,21 @@ def main():
                     pass
         print(f"[info] read {len(versions)} article versions from {articles}")
 
-    seen, tasks = set(), []
+    seen, tasks, unparsed = set(), [], 0
     with open(args.csv_path, newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
-            pmcid = (row.get("pmcid") or "").strip()
-            base = (row.get("image_file_name") or "").strip()
-            if not (pmcid and base) or (pmcid, base) in seen:
+            # file_name is "images/PMC1234567_figure.jpg"
+            m = re.match(r"^(?:.*/)?(PMC\d+)_(.+)$", (row.get("file_name") or "").strip())
+            if not m:
+                unparsed += 1
+                continue
+            pmcid, base = m.group(1), m.group(2)
+            if (pmcid, base) in seen:
                 continue
             seen.add((pmcid, base))
             tasks.append((pmcid, base, versions.get(pmcid)))
+    if unparsed:
+        print(f"[warn] {unparsed} rows had an unparseable file_name and were skipped")
 
     print(f"[info] {len(tasks)} distinct images across "
           f"{len({t[0] for t in tasks})} articles")

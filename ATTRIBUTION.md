@@ -50,17 +50,28 @@ questions can carry a more permissive licence than the images they refer to.
 
 MIT, per `LICENSE`.
 
-## Looking up a source article
+## Attribution is carried in the dataset
 
-Resolve any PMCID from the `pmcid` column:
+Every CC licence in use here requires attributing the original work. The dataset
+carries what you need on each row, so attribution does not require a lookup:
 
-```
-https://pmc.ncbi.nlm.nih.gov/articles/<PMCID>/
-```
+| Column | Use |
+|---|---|
+| `authors` | The creators to credit |
+| `title` | The work's title |
+| `pmc_url` | Link to the original |
 
-`source_articles.csv` already carries, for each of the 381 articles: its licence
-code, DOI, PMC version, formatted citation, and how many images and questions it
-contributes. Machine-readable metadata is also available per article at:
+Two of the 381 articles designate no author in PMC's metadata — an issue
+editorial (PMC4362191) and a biographical tribute (PMC6409286). For those,
+`authors` names the journal instead, marked `(no author listed)`, which is the
+appropriate fallback when no creator is designated.
+
+If you reproduce a figure, credit it with those three fields plus the licence
+from `source_articles.csv`.
+
+`source_articles.csv` additionally carries, for each of the 381 articles: its
+licence code, DOI, PMC version, formatted citation, and how many images and
+questions it contributes. Machine-readable metadata is also available per article at:
 
 ```
 https://pmc-oa-opendata.s3.amazonaws.com/<PMCID>.<version>/<PMCID>.<version>.json
@@ -74,8 +85,8 @@ is the field to re-check.
 
 If you publish results on this benchmark, cite the accompanying paper. If you
 reproduce an individual figure, cite that figure's source article too — the
-`citation` column of `source_articles.csv` gives you a formatted reference for
-every one.
+dataset's `authors`, `title`, and `pmc_url` columns identify it, and the
+`citation` column of `source_articles.csv` gives a formatted reference.
 
 ## Data provenance
 
@@ -103,7 +114,7 @@ scripts built on `ftp.ncbi.nlm.nih.gov/pub/pmc/oa_file_list.csv` and the
 `fetch_images.py` uses the current object layout:
 
 ```
-https://pmc-oa-opendata.s3.amazonaws.com/<PMCID>.<version>/<image_file_name>
+https://pmc-oa-opendata.s3.amazonaws.com/<PMCID>.<version>/<basename>
 ```
 
 Images are individual objects, so no bulk index or tarball is involved.
@@ -112,4 +123,4 @@ Documentation: <https://pmc.ncbi.nlm.nih.gov/tools/cloud/>
 ## Reporting problems
 
 Errors in the questions, mismatched answer keys, and images that no longer
-retrieve are all worth reporting. Please open an issue with the `pmcid` and `image_file_name`.
+retrieve are all worth reporting. Please open an issue with the `file_name`.
