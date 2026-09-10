@@ -49,6 +49,12 @@ directory you fetched into; paths in the dataset are relative
   versions, timings, and SHA-256 checksums of both the dataset and the scripts
 - `<stem>.log` — full stdout/stderr
 
+> **Before sharing a `.meta.json`, check what is in it.** The sidecar records
+> the host of your `AZURE_OPENAI_ENDPOINT` so that a run can be traced to the
+> deployment that produced it. On a private or institutional deployment that
+> hostname may identify you or your organisation. Redact it before attaching a
+> sidecar to a paper, issue or public repository.
+
 Closed-model results are not bitwise reproducible, because providers update
 served checkpoints without notice. The snapshot fields are what let you tell
 whether a divergence is yours or theirs. If you are comparing against the

@@ -247,6 +247,7 @@ USER_PROMPT = (
 | Setting | Value |
 |---|---|
 | Provider | Azure OpenAI |
+| API version | `2024-12-01-preview` |
 | Deployment | vision-capable; default `gpt-5` |
 | Parameters sent | `model`, `messages` only |
 | `temperature`, `top_p`, `max_tokens` | not sent (service defaults) |
@@ -259,12 +260,17 @@ Decoding was left at each vendor's documented default rather than tuned; all of
 these models are reasoning models whose providers restrict or discourage
 sampling parameters. `null` means the parameter was deliberately not sent.
 
+Both Azure deployments were called with API version **`2024-12-01-preview`**.
+The served snapshots at run time were `gpt-6-astra-2026-09-03` and
+`gpt-5.6-sol-2026-07-09`; providers update these without notice, so check them
+before comparing against the numbers in the paper.
+
 | Model | Identifier | Settings |
 |---|---|---|
-| GPT-6 Astra | `gpt-6-astra` (Azure) | no sampling parameters; reasoning effort at API default |
-| GPT-6 Astra, high-compute arm | `gpt-6-astra` (Azure) | `reasoning_effort: xhigh` |
-| GPT-5.6 Sol | `gpt-5.6-sol` (Azure) | no sampling parameters; reasoning effort default (medium) |
-| GPT-5.6 Sol, high-compute arm | `gpt-5.6-sol` (Azure) | `reasoning_effort: xhigh` |
+| GPT-6 Astra | `gpt-6-astra` (Azure, `2024-12-01-preview`) | no sampling parameters; reasoning effort at API default |
+| GPT-6 Astra, high-compute arm | `gpt-6-astra` (Azure, `2024-12-01-preview`) | `reasoning_effort: xhigh` |
+| GPT-5.6 Sol | `gpt-5.6-sol` (Azure, `2024-12-01-preview`) | no sampling parameters; reasoning effort default (medium) |
+| GPT-5.6 Sol, high-compute arm | `gpt-5.6-sol` (Azure, `2024-12-01-preview`) | `reasoning_effort: xhigh` |
 | Claude Opus 5 | `claude-opus-5` | `max_tokens: 8192`; thinking effort default (high) |
 | Claude Opus 5, high-compute arm | `claude-opus-5` | `max_tokens: 8192`, `effort: max` |
 | Gemini 3.7 Flash | `gemini-3.7-flash` (Vertex AI) | `temperature: 1.0`, `thinking_level: high` |
