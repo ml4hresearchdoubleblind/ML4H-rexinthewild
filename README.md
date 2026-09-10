@@ -21,6 +21,7 @@ release for the review period.
 | `code/run_with_provenance.py` | Wrapper recording model IDs, decoding params, and checksums per run |
 | `code/train_cv_qwen8b.py` | QLoRA fine-tuning with 5-fold cross-validation (paper appendix) |
 | `code/cv_folds.json` | The exact folds used, split by image so no image spans two folds |
+| `source_articles.csv` | Per-article licence, DOI, citation, and image/question counts for all 381 sources |
 | `ATTRIBUTION.md` | Licensing, image provenance, and how to cite the source articles |
 
 ## Images are not redistributed
@@ -29,18 +30,22 @@ The CSV contains questions only. Images stay with their source articles, under
 their own licences, and are fetched on demand:
 
 ```bash
-pip install requests
-python fetch_images.py rexinthewild.csv images/ --email you@example.com
+python fetch_images.py rexinthewild.csv images/
 ```
 
-NCBI asks that automated requests carry a contact address, which is why
-`--email` is required. The script groups requests by article, so each OA package
-is downloaded once even when several questions share a figure, and it caches the
-OA file index between runs. Expect the first run to take a while — it downloads
-NCBI's full OA index before fetching anything.
+No dependencies beyond the standard library, and nothing to configure. Images are
+pulled as individual objects from the PMC Cloud Service on AWS Open Data, so
+there is no bulk index to download and no tarballs to unpack. All 485 images were
+verified retrievable at the time of release.
 
-See `ATTRIBUTION.md` for licence terms. Not every article carries the same
-licence, and a few permit non-commercial use only.
+> **Licensing, in short: every one of the 381 source articles is non-commercial
+> only, and about a third are additionally no-derivatives.** Not one is plain
+> CC BY. Read `ATTRIBUTION.md` before using the images for anything, and consult
+> `source_articles.csv` for the per-article terms.
+
+If you built anything against NCBI's old FTP endpoints, note that they were
+**retired in August 2026** — `oa_file_list.csv` and `oa.fcgi` both 404 now. See
+the end of `ATTRIBUTION.md` for the current object layout.
 
 ## Schema
 
@@ -118,8 +123,9 @@ and a validation fold, and are stratified by tag.
 
 ## Licence
 
-Code in this repository: MIT. See `ATTRIBUTION.md` for the questions and images,
-which carry different terms.
+Code: MIT (`LICENSE`). Questions and answer keys: CC BY 4.0. Images: **not
+redistributed here**, and each is governed by its source article's own licence,
+all of which are non-commercial. See `ATTRIBUTION.md`.
 
 ## Citation
 

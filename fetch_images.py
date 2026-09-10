@@ -1,151 +1,152 @@
 #!/usr/bin/env python3
 """
-Fetch the ReXInTheWild images from the PubMed Central Open Access subset.
+Fetch the ReXInTheWild images from the PMC Open Access Subset.
 
 The benchmark ships question-answer pairs only. Images are not redistributed;
-this script retrieves each one from its source article's PMC OA package, so
-the figures you evaluate on are the originals under their own licences.
+this script retrieves each one from its source article so that you obtain it
+under that article's own licence. Every source article is non-commercially
+licensed -- see ATTRIBUTION.md before using the images for anything.
 
-Images are grouped by article, so each OA package is downloaded once even
-when several questions reference the same figure (954 questions span 381
-articles). Files are written as {pmcid}_{image_file_name}, which matches the
-`image_id` column and is the dataset's unique image key -- `image_file_name`
-alone is NOT unique, since generic names like gr1.jpg recur across articles.
+Images come from the PMC Cloud Service on AWS Open Data, which replaced NCBI's
+legacy FTP dataset service in August 2026. Objects are addressed directly, so
+there is no bulk index to download and no tarballs to unpack.
+
+Files are written as {pmcid}_{image_file_name}, matching the `image_id` column,
+which is the dataset's unique image key. `image_file_name` alone is NOT unique:
+generic names like gr1.jpg recur across articles.
 
 Usage:
-    python fetch_images.py rexinthewild.csv images/ --email you@example.com
-
-NCBI asks that automated requests identify a contact address; --email is
-required for that reason. Please also keep --sleep at or above 0.34s to stay
-within the 3 requests/second guidance.
+    python fetch_images.py rexinthewild.csv images/
+    python fetch_images.py rexinthewild.csv images/ --workers 8
 """
 import argparse
 import csv
-import io
+import re
 import sys
-import tarfile
-import time
-from collections import defaultdict
+import urllib.error
+import urllib.request
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import requests
-
-OA_FILE_LIST = "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_file_list.csv"
-FTP_BASE = "https://ftp.ncbi.nlm.nih.gov/pub/pmc/"
+BUCKET = "https://pmc-oa-opendata.s3.amazonaws.com"
+UA = "rexinthewild-fetch/1.0 (https://github.com/ml4hresearchdoubleblind/ML4H-rexinthewild)"
 
 
-def get(url, email, timeout=120, stream=False):
-    headers = {"User-Agent": f"rexinthewild-fetch/1.0 (contact: {email})"}
-    r = requests.get(url, headers=headers, timeout=timeout, stream=stream)
-    r.raise_for_status()
-    return r
+def http_get(url, timeout=60):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
 
 
-def load_oa_index(outdir, email, wanted):
-    """Map PMCID -> relative tar path, for the PMCIDs we actually need."""
-    cache = outdir / "oa_file_list.csv"
-    if not cache.exists():
-        print(f"[info] downloading OA file list (~1GB uncompressed) -> {cache}")
-        r = get(OA_FILE_LIST, email, timeout=600, stream=True)
-        with cache.open("wb") as fh:
-            for chunk in r.iter_content(chunk_size=1 << 20):
-                fh.write(chunk)
-    else:
-        print(f"[info] using cached OA file list at {cache}")
+def resolve_version(pmcid, cache={}):
+    """PMC objects are keyed PMC<id>.<version>/. Find the version that exists."""
+    if pmcid in cache:
+        return cache[pmcid]
+    for v in (1, 2, 3):
+        try:
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"{BUCKET}/{pmcid}.{v}/{pmcid}.{v}.json",
+                    headers={"User-Agent": UA}, method="HEAD"), timeout=30)
+            cache[pmcid] = v
+            return v
+        except urllib.error.HTTPError:
+            continue
+        except Exception:
+            break
+    try:  # fall back to a listing
+        xml = http_get(f"{BUCKET}/?list-type=2&prefix={pmcid}.").decode("utf-8", "replace")
+        for key in re.findall(r"<Key>([^<]+)</Key>", xml):
+            if key.endswith(".json"):
+                v = int(key.split("/")[0].rsplit(".", 1)[1])
+                cache[pmcid] = v
+                return v
+    except Exception:
+        pass
+    cache[pmcid] = None
+    return None
 
-    index = {}
-    with cache.open(newline="", encoding="utf-8", errors="replace") as fh:
-        for row in csv.DictReader(fh):
-            acc = row.get("Accession ID")
-            if acc in wanted:
-                index[acc] = row.get("File")
-    missing = wanted - set(index)
-    if missing:
-        print(f"[warn] {len(missing)} PMCIDs absent from the OA list: "
-              f"{sorted(missing)[:5]}{' ...' if len(missing) > 5 else ''}")
-    return index
 
-
-def extract_from_package(tar_bytes, basenames):
-    """Pull the requested basenames out of one OA package tarball."""
-    found = {}
-    with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as t:
-        members = [m for m in t.getmembers() if m.isfile()]
-        by_base = {m.name.rsplit("/", 1)[-1].lower(): m for m in members}
-        for base in basenames:
-            m = by_base.get(base.lower())
-            if m is None:
-                continue
-            fh = t.extractfile(m)
-            if fh is not None:
-                found[base] = fh.read()
-    return found
+def fetch_one(task, out_dir):
+    pmcid, basename, version = task
+    dest = out_dir / f"{pmcid}_{basename}"
+    if dest.exists() and dest.stat().st_size > 0:
+        return ("skip", pmcid, basename, "already present")
+    if version is None:
+        version = resolve_version(pmcid)
+    if version is None:
+        return ("fail", pmcid, basename, "no PMC object found for this article")
+    try:
+        data = http_get(f"{BUCKET}/{pmcid}.{version}/{basename}")
+    except urllib.error.HTTPError as e:
+        return ("fail", pmcid, basename, f"HTTP {e.code}")
+    except Exception as e:
+        return ("fail", pmcid, basename, str(e)[:80])
+    if not data:
+        return ("fail", pmcid, basename, "empty response")
+    dest.write_bytes(data)
+    return ("ok", pmcid, basename, f"{len(data)} bytes")
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("csv_path", help="rexinthewild.csv")
     ap.add_argument("out_dir", help="directory to write images into")
-    ap.add_argument("--email", required=True,
-                    help="contact address sent to NCBI, per their access policy")
-    ap.add_argument("--sleep", type=float, default=0.34,
-                    help="seconds between requests (default 0.34, ~3/s)")
+    ap.add_argument("--workers", type=int, default=8,
+                    help="parallel downloads (default 8; please keep this modest)")
+    ap.add_argument("--articles", default=None,
+                    help="source_articles.csv, to skip per-article version lookups")
     args = ap.parse_args()
 
-    out = Path(args.out_dir)
-    out.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # group the wanted basenames by article
-    by_pmcid = defaultdict(set)
+    versions = {}
+    articles = args.articles
+    if articles is None:
+        default = Path(args.csv_path).with_name("source_articles.csv")
+        articles = str(default) if default.exists() else None
+    if articles:
+        with open(articles, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                try:
+                    versions[row["pmcid"]] = int(row["pmc_version"])
+                except (KeyError, ValueError):
+                    pass
+        print(f"[info] read {len(versions)} article versions from {articles}")
+
+    seen, tasks = set(), []
     with open(args.csv_path, newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             pmcid = (row.get("pmcid") or "").strip()
-            name = (row.get("image_file_name") or "").strip()
-            if pmcid and name:
-                by_pmcid[pmcid].add(name)
-    n_img = sum(len(v) for v in by_pmcid.values())
-    print(f"[info] {n_img} images across {len(by_pmcid)} articles")
-
-    index = load_oa_index(out, args.email, set(by_pmcid))
-
-    ok = skipped = failed = 0
-    for i, (pmcid, basenames) in enumerate(sorted(by_pmcid.items()), 1):
-        todo = {b for b in basenames if not (out / f"{pmcid}_{b}").exists()}
-        skipped += len(basenames) - len(todo)
-        if not todo:
-            continue
-
-        rel = index.get(pmcid)
-        if not rel:
-            print(f"[error] {pmcid}: no OA package entry")
-            failed += len(todo)
-            continue
-
-        try:
-            r = get(FTP_BASE + rel, args.email, timeout=300)
-            found = extract_from_package(r.content, todo)
-        except Exception as exc:
-            print(f"[error] {pmcid}: {exc}")
-            failed += len(todo)
-            continue
-
-        for base in sorted(todo):
-            data = found.get(base)
-            if data is None:
-                print(f"[error] {pmcid}: {base} not in package {rel}")
-                failed += 1
+            base = (row.get("image_file_name") or "").strip()
+            if not (pmcid and base) or (pmcid, base) in seen:
                 continue
-            (out / f"{pmcid}_{base}").write_bytes(data)
-            ok += 1
+            seen.add((pmcid, base))
+            tasks.append((pmcid, base, versions.get(pmcid)))
 
-        print(f"[{i}/{len(by_pmcid)}] {pmcid}: {len(found)}/{len(todo)} extracted")
-        time.sleep(args.sleep)
+    print(f"[info] {len(tasks)} distinct images across "
+          f"{len({t[0] for t in tasks})} articles")
 
-    print(f"\ndone. retrieved {ok}, already present {skipped}, failed {failed}")
-    if failed:
-        print("Articles can be withdrawn or re-versioned upstream; re-run to retry, "
-              "and see ATTRIBUTION.md for how to report persistent gaps.")
+    counts, failures = Counter(), []
+    with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        for i, (status, pmcid, base, note) in enumerate(
+                ex.map(lambda t: fetch_one(t, out_dir), tasks), 1):
+            counts[status] += 1
+            if status == "fail":
+                failures.append((pmcid, base, note))
+                print(f"[fail] {pmcid} {base}: {note}")
+            if i % 50 == 0 or i == len(tasks):
+                print(f"  {i}/{len(tasks)}  ok={counts['ok']} "
+                      f"skip={counts['skip']} fail={counts['fail']}", flush=True)
+
+    print(f"\ndone. retrieved {counts['ok']}, already present {counts['skip']}, "
+          f"failed {counts['fail']}")
+    if failures:
+        print("\nArticles are occasionally re-versioned or withdrawn upstream. Re-run to "
+              "retry; if a failure persists, please open an issue with the image_id.")
         return 1
     return 0
 
