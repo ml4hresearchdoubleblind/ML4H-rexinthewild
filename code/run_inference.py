@@ -53,7 +53,6 @@ MODEL_PARAMS = {
     # so omitting them IS the setting. `reasoning_effort` is likewise left at
     # the API default. Set a value here only to deliberately override a default.
     "gpt": {"temperature": None, "top_p": None},
-    "gpt-text": {"temperature": None, "top_p": None},
 
     # GPT-5.6 Sol at maximum available reasoning. "max" is rejected on
     # api-version 2024-12-01-preview, so "xhigh" is the ceiling here.
@@ -154,8 +153,7 @@ MODEL_PARAMS = {
 }
 
 # Single source of truth for --model, so the CLI choices, the dispatch table and
-# the error text cannot drift apart (which is how 'llava-med' ended up
-# implemented but unreachable from the command line).
+# the error text cannot drift apart.
 SUPPORTED_MODELS = list(MODEL_PARAMS)
 
 # Local models are large; load each one once and reuse it across questions.
@@ -200,19 +198,6 @@ except Exception as e:
     print(f"Warning: Could not initialize Azure OpenAI client: {e}", flush=True)
     exit(1)
 
-def load_llava_med():
-    global _llava_cache
-    if _llava_cache is None:
-        disable_torch_init()
-        model_name = get_model_name_from_path(LLAVA_MED_MODEL_ID)
-        tokenizer, model, image_processor, context_len = load_pretrained_model(
-            LLAVA_MED_MODEL_ID,
-            model_base=None,
-            model_name=model_name,
-            device_map="auto",
-        )
-        _llava_cache = tokenizer, model, image_processor, context_len
-    return _llava_cache
 
 def image_to_data_url(image_path):
     ext = os.path.splitext(str(image_path))[1].lower()
@@ -357,62 +342,6 @@ def generate_gpt_answer(question, choices, image_path, model_key="gpt"):
         time.sleep(10)
         return "", full_user_prompt, ""
 
-def generate_gpt_text_answer(question, choices, image_path):
-    gpt_model_key = "gpt-text"
-    # This purposely ignores the image and instructs the model not to use it.
-    full_user_prompt = (
-        f"{USER_PROMPT}\n"
-        f"Question: {question}\n"
-        f"Choices:\n{choices}"
-    )
-    system_message = {
-        "role": "system",
-        "content": [
-            {"type": "text", "text": """Here is a medical visual-question answering task.\n
-            Do your best to answer the question without seeing the image, by instead using your medical knowledge and test-taking skills.\n
-            Given the following multiple-choice question, select the single best answer from the choices.\n
-            ONLY output your FINAL answer, which must be placed inside curly brackets, e.g. {A}. Provide NO extra words, reasoning or explanation outside the curly brackets.\n
-            When asked about left/right, answer from the patient's viewpoint unless otherwise stated.\n"""
-            }
-        ]
-    }
-    user_message = {
-        "role": "user",
-        "content": [
-            {
-                "type": "text",
-                "text": full_user_prompt
-            },
-        ]
-    }
-    
-    try:
-        response = azure_openai_client.chat.completions.create(
-            model=azure_deployment_name,
-            messages=[system_message, user_message],
-            **azure_sampling_kwargs(gpt_model_key)
-        )
-        content = response.choices[0].message.content.strip()
-        json_str = None
-        # Try to find a JSON object in the response if there is external reasoning
-        matches = re.findall(r'({\s*"answer"\s*:\s*".*?"\s*})', content, re.DOTALL)
-        if matches:
-            json_str = matches[0]
-        else:
-            # fallback: maybe full content is JSON
-            json_str = content
-
-        try:
-            answer_json = json.loads(json_str)
-            full_answer = str(answer_json.get("answer", "")).strip()
-        except Exception:
-            # fallback: just return the raw content if not JSON
-            full_answer = content
-        model_answer = extract_bracketed_answer(full_answer)
-        return model_answer, full_user_prompt, full_answer
-    except Exception as e:
-        print(f"[error][answer-generation] {e} for {image_path}", flush=True)
-        return "", full_user_prompt, ""
 
 def load_local_vlm(model_key):
     """
@@ -782,44 +711,6 @@ def generate_claude_opus45_answer(question, choices, image_path, model_key="clau
         print(f"[error][claude-generate] {e}", flush=True)
         return "", full_user_prompt, "", 0
 
-def generate_llava_med_answer(question, choices, image_path):
-    tokenizer, model, image_processor, _ = load_llava_med()
-
-    full_user_prompt = (
-        f"{USER_PROMPT}\n"
-        f"Question: {question}\n"
-        f"Choices:\n{choices}"
-    )
-
-    qs = DEFAULT_IMAGE_TOKEN + "\n" + full_user_prompt
-    if getattr(model.config, "mm_use_im_start_end", False):
-        qs = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + "\n" + full_user_prompt
-
-    conv = conv_templates["mistral_instruct"].copy()
-    conv.append_message(conv.roles[0], qs)
-    conv.append_message(conv.roles[1], None)
-    prompt = conv.get_prompt()
-
-    image = Image.open(image_path).convert("RGB")
-    image_tensor = process_images([image], image_processor, model.config)[0]
-
-    input_ids = tokenizer_image_token(
-        prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
-    ).unsqueeze(0).cuda()
-
-    with torch.inference_mode():
-        output_ids = model.generate(
-            input_ids,
-            images=image_tensor.unsqueeze(0).half().cuda(),
-            do_sample=False,
-            temperature=0.0,
-            max_new_tokens=100,
-            use_cache=True,
-        )
-
-    full_answer = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
-    model_answer = extract_bracketed_answer(full_answer)
-    return model_answer, full_user_prompt, full_answer
 
 def normalize_ans(ans):
     if ans is None:
@@ -1026,10 +917,6 @@ def main(
                 answer_val, prompt_used, unformatted_val = generate_gpt_answer(
                     question, choices_str, img_path, model_key=model
                 )
-            elif model == "gpt-text":
-                answer_val, prompt_used, unformatted_val = generate_gpt_text_answer(
-                    question, choices_str, img_path
-                )
             elif model == "medgemma":
                 answer_val, prompt_used, unformatted_val = generate_medgemma_answer(
                     question, choices_str, img_path
@@ -1062,10 +949,6 @@ def main(
                     answer_val, prompt_used = answer_res[:2]
                     unformatted_val = ""
                     claude_tokens_used = answer_res[2] if len(answer_res) > 2 else ""
-            elif model == "llava-med":
-                answer_val, prompt_used, unformatted_val = generate_llava_med_answer(
-                    question, choices_str, img_path
-                )
             else:
                 print(
                     f"[error][invalid model] Model '{model}' is not supported. "
