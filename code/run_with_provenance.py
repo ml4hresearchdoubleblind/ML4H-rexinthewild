@@ -168,7 +168,7 @@ def main():
             meta["model"]["served_model_snapshot"] = out.stdout.strip() or None
         except Exception:
             meta["model"]["served_model_snapshot"] = None
-    if a.model in ("gpt", "gpt-text", "gpt-xhigh", "gpt6astra", "gpt6astra-xhigh") and os.getenv("AZURE_OPENAI_API_KEY"):
+    if a.model in ("gpt", "gpt-xhigh", "gpt6astra", "gpt6astra-xhigh") and os.getenv("AZURE_OPENAI_API_KEY"):
         probe = ("import os,openai;"
                  "c=openai.AzureOpenAI(api_key=os.environ['AZURE_OPENAI_API_KEY'],"
                  "azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT'],"
