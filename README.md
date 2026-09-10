@@ -19,9 +19,11 @@ release for the review period.
 | `fetch_images.py` | Retrieves the images from PMC Open Access (see below) |
 | `prompts.md` | Every pipeline prompt and all generation/evaluation hyperparameters |
 | `source_articles.csv` | Per-article licence, DOI, citation, and image/question counts for all 379 sources |
+| `code/` | Inference, scoring and fine-tuning code — see `code/README.md` |
 | `code/run_inference.py` | Evaluation harness for the models reported in the paper |
 | `code/run_with_provenance.py` | Wrapper recording model IDs, decoding params, and checksums per run |
-| `code/train_cv_qwen8b.py` | QLoRA fine-tuning with 5-fold cross-validation (paper appendix) |
+| `code/score_results.py` | Scores result CSVs with Wilson confidence intervals |
+| `code/train_cv_qwen8b.py` | QLoRA fine-tuning with cross-validation (paper appendix) |
 | `code/cv_folds.json` | The exact folds used, split by image so no image spans two folds |
 | `ATTRIBUTION.md` | Licensing, image provenance, and how to cite the source articles |
 
