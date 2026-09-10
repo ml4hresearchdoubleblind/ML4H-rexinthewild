@@ -1,0 +1,16 @@
+# fetched images and the OA index are never committed
+images/
+*.tar.gz
+oa_file_list.csv
+
+# credentials -- must never be committed
+.env
+*.pat
+*_pat.txt
+.ml4h_pat*
+*.key
+
+results/
+__pycache__/
+*.pyc
+.DS_Store
