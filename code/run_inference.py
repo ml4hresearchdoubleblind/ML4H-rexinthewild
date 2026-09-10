@@ -243,12 +243,20 @@ def extract_bracketed_answer(text, valid_letters="ABCDE"):
     a bare letter or "D." 53% of the time and [D] 23% of the time, using {D} for
     only 24%. A curly-brace-only parser silently discarded 76% of its answers --
     and because unparsed rows are dropped rather than scored wrong, the survivors
-    were a biased subset. (In the original paper this was caught and repaired by
-    hand; this makes that step automatic and reproducible.)
+    were a biased subset. This parser accepts the conventions models actually
+    use, so that step is automatic and reproducible rather than manual.
 
-    Tried in order of decreasing explicitness. Returns "" if nothing is
-    unambiguous, so genuinely unreadable output is still visible as a failure
-    rather than being guessed at.
+    Patterns are tried in order of decreasing explicitness. Within whichever
+    pattern first matches, ALL matches are collected: if they disagree -- as in
+    "the answer is [a] or [b]" -- the response names more than one answer, and
+    "" is returned rather than taking whichever appeared first. Picking the
+    first would score a hedged response as a confident one, and would depend on
+    word order rather than on content.
+
+    Returns "" when nothing unambiguous is present, so unreadable or
+    self-contradicting output stays visible as a failure instead of being
+    guessed at. Callers score "" as incorrect; it is never dropped from the
+    denominator.
     """
     if not text:
         return ""
@@ -263,14 +271,17 @@ def extract_bracketed_answer(text, valid_letters="ABCDE"):
         rf'^\s*({L})\s*\.?\s*$',            # the WHOLE reply is "A" or "A."
     ]
     for pat in patterns:
-        m = re.search(pat, t, flags=re.IGNORECASE | re.MULTILINE)
-        if m:
-            return m.group(1).upper()
+        found = re.findall(pat, t, flags=re.IGNORECASE | re.MULTILINE)
+        if not found:
+            continue
+        letters = {m.upper() for m in found}
+        if len(letters) > 1:
+            return ""          # names more than one answer -> no answer
+        return letters.pop()
 
     # Deliberately no further guessing. A letter heading longer prose
-    # ("A. Cleft lip") is NOT auto-assigned -- it goes to manual verification,
-    # which is how the original paper handled non-conforming answers. Returning
-    # "" keeps it visible instead of inventing a choice.
+    # ("A. Cleft lip") is NOT auto-assigned -- it goes to manual verification.
+    # Returning "" keeps it visible instead of inventing a choice.
     return ""
 
 # This utility ensures choices are injected as a formatted string, not a Python list or extra-quoted.
