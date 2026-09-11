@@ -107,7 +107,7 @@ MODEL_PARAMS = {
                       "thinking_level": "high"},
 
     # google/medgemma-4b-it -- greedy, matching the model card's own usage
-    # example. Passing Gemma 3's sampling defaults here makes MedGemma unreliable.
+    # example, which passes do_sample=False explicitly.
     "medgemma": {
         "model_id": "google/medgemma-4b-it",
         "do_sample": False,
@@ -250,6 +250,7 @@ def extract_bracketed_answer(text, valid_letters="ABCDE"):
 
     patterns = [
         rf'\{{\s*({L})\s*[\}}\.\)]',      # {A}   and the {A. / {A) typos
+        rf'\A\s*({L})\s*\}}\s*\Z',           # whole reply is 'C}' -- a {C} that lost its brace
         rf'\[\s*({L})\s*\]',                # [A]
         rf'\(\s*({L})\s*\)',                # (A)
         rf'(?:answer|choice|option)\s*(?:is|:)?\s*[\{{\[\(]?\s*({L})\b',  # Answer: A

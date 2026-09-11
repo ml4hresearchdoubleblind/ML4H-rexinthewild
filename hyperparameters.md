@@ -51,8 +51,9 @@ provenance.
 documented defaults, and `high` is the maximum. `top_p` and `top_k` were left
 unset because Google publishes no defaults for them and advises against tuning.
 
-**Open-weight.** Greedy decoding makes these runs deterministic, and avoids the
-degraded behaviour MedGemma shows under its base model's sampling defaults.
+**Open-weight.** Greedy decoding makes these runs deterministic, matches the
+usage example on the MedGemma model card (`do_sample=False`), and keeps decoding
+identical across the open-weight models.
 
 ## Served snapshots
 
